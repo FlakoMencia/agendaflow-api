@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: agendaflow-api
+  profiles:
+    default: local
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  web:
+    resources:
+      add-mappings: true
+
+server:
+  port: 8080
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    com.flakomencia.agendaflow: INFO
