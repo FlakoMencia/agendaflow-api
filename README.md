@@ -4,7 +4,7 @@ AgendaFlow API is the main REST backend for AgendaFlow, a multi-organization Saa
 
 ## Status
 
-**Phase 0 — Technical bootstrap.** This repository currently provides the application foundation, technical health tooling, and a guarded system-information endpoint. Business modules, JWT authentication, appointments, and multi-tenancy are not implemented yet.
+**Phase 1 — Flyway migration validation.** The technical bootstrap now includes an isolated PostgreSQL Testcontainers test that validates the existing migration from an empty database. Business modules, JWT authentication, appointments, and multi-tenancy are not implemented yet.
 
 ## Backend responsibility
 
@@ -78,7 +78,17 @@ The default local profile listens on port `8080`.
 mvnw.cmd clean test
 ```
 
-Bootstrap tests use the `test` profile and explicitly disable Flyway, DataSource, JPA, and Spring Batch JDBC auto-configuration. They do not require a local PostgreSQL instance or start Testcontainers in this phase.
+Bootstrap tests use the `test` profile and explicitly disable Flyway, DataSource, JPA, and Spring Batch JDBC auto-configuration. They do not require a local PostgreSQL instance or start Testcontainers.
+
+Integration tests run separately during Maven's `verify` phase and require Docker:
+
+```cmd
+mvnw.cmd clean verify
+mvnw.cmd -Dit.test=FlywayMigrationIT verify
+```
+
+They use the `integration-test` profile and a disposable `postgres:18.4` container. Connection
+properties are supplied dynamically; the developer's local database is never used.
 
 ## Technical endpoints
 
@@ -115,7 +125,7 @@ Only the technical bootstrap configuration and system endpoint have classes in P
 
 ## Flyway strategy
 
-Flyway owns all database schema changes. Existing migration files, when present, are preserved exactly as authored. This bootstrap neither executes migrations nor creates new ones. Production and local schema evolution must use versioned migrations under `src/main/resources/db/migration`.
+Flyway owns all database schema changes. Existing migration files are preserved exactly as authored. The integration test executes them only against a disposable Testcontainers database; production and local schema evolution must use versioned migrations under `src/main/resources/db/migration`.
 
 All primary and foreign keys in the designed PostgreSQL schema use `BIGINT`; future Java persistence mappings must represent them with `Long`, never UUIDs unless the database design is explicitly changed in a future decision.
 
