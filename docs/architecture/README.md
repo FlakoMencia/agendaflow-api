@@ -1,3 +1,6 @@
 # Architecture documentation
 
-This folder will hold architecture overviews, component boundaries, deployment views, and approved diagrams as the platform evolves.
+This folder holds architecture overviews, component boundaries, deployment views, and approved
+diagrams as the platform evolves.
+
+- [Backend modules](backend-modules.md)

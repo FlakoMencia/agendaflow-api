@@ -1,14 +1,13 @@
 # AgendaFlow API
 
-AgendaFlow API is the main REST backend for AgendaFlow, a multi-organization SaaS platform for managing organizations, branches, specialists, services, customers, schedules, and appointments.
+Main REST backend for AgendaFlow, a multi-organization SaaS platform for reservations and appointment
+management.
 
 ## Status
 
-**Phase 1 — Flyway migration validation.** The technical bootstrap now includes an isolated PostgreSQL Testcontainers test that validates the existing migration from an empty database. Business modules, JWT authentication, appointments, and multi-tenancy are not implemented yet.
-
-## Backend responsibility
-
-The API will expose the platform's REST interfaces, coordinate business use cases, enforce security, and persist AgendaFlow data in PostgreSQL as later phases introduce those capabilities.
+**Phase 2 — Organizations and branches vertical slice.** Organizations and their organization-scoped
+branches now work end to end through REST, validation, application services, JPA and PostgreSQL.
+JWT, memberships, roles and production authorization are not implemented.
 
 ## Stack
 
@@ -18,127 +17,95 @@ The API will expose the platform's REST interfaces, coordinate business use case
 | Maven Wrapper | 3.9.16 |
 | Spring Boot | 4.0.7 |
 | springdoc OpenAPI | 3.0.3 |
-| PostgreSQL | JDBC driver managed by Spring Boot |
-| Flyway | managed by Spring Boot |
-| Tests | JUnit 5, Spring Boot Test, Spring Security Test, Testcontainers |
+| PostgreSQL integration test | 18.4 |
+| Schema management | Flyway |
+| Tests | JUnit, Mockito, MockMvc and Testcontainers |
 
-## Local requirements
+## Local configuration
 
-- JDK 21
-- PostgreSQL, for the `local` profile
-- Internet access on the first Maven build, to download dependencies
-
-## PostgreSQL configuration
-
-The local profile expects PostgreSQL and validates the schema; Hibernate never creates or updates tables. Flyway is enabled only for the local profile and reads `classpath:db/migration`.
-
-Default local connection values are:
+The default `local` profile expects PostgreSQL and uses:
 
 ```text
 DB_URL=jdbc:postgresql://localhost:5432/agendaflow_db
 DB_USERNAME=agendaflow_user
 DB_PASSWORD=agendaflow_local_password
+APP_CORS_ALLOWED_ORIGINS=http://localhost:4200
 ```
 
-Copy `.env.example` only as a reference for your environment. Do not commit a real `.env` file.
+Use `.env.example` as documentation only. Do not commit a real `.env`. Hibernate uses
+`ddl-auto: validate`; it never creates or updates tables.
 
-## Environment variables
-
-| Variable | Purpose |
-| --- | --- |
-| `DB_URL` | JDBC URL for PostgreSQL |
-| `DB_USERNAME` | Database user |
-| `DB_PASSWORD` | Database password |
-| `JWT_SECRET` | Reserved for a future JWT phase |
-| `JWT_ISSUER` | Reserved for a future JWT phase |
-
-## Maven Wrapper commands
+## Build, tests and execution
 
 ```cmd
 mvnw.cmd --version
 mvnw.cmd clean test
 mvnw.cmd clean verify
-```
-
-On Unix-like systems use `./mvnw clean verify`.
-
-## Run locally
-
-Start PostgreSQL with the configured database and schema migrations, then run:
-
-```cmd
 mvnw.cmd spring-boot:run
 ```
 
-The default local profile listens on port `8080`.
+`clean test` runs unit and database-free bootstrap tests. `clean verify` additionally runs the
+integration suite against disposable `postgres:18.4` containers, applies V1 through Flyway and uses
+real JPA repositories. Docker must be available for `verify`; the local database is never used by
+integration tests.
 
-## Tests
+The API listens on `http://localhost:8080` by default.
 
-```cmd
-mvnw.cmd clean test
-```
-
-Bootstrap tests use the `test` profile and explicitly disable Flyway, DataSource, JPA, and Spring Batch JDBC auto-configuration. They do not require a local PostgreSQL instance or start Testcontainers.
-
-Integration tests run separately during Maven's `verify` phase and require Docker:
-
-```cmd
-mvnw.cmd clean verify
-mvnw.cmd -Dit.test=FlywayMigrationIT verify
-```
-
-They use the `integration-test` profile and a disposable `postgres:18.4` container. Connection
-properties are supplied dynamically; the developer's local database is never used.
-
-## Technical endpoints
+## API
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/v1/system/info` | Bootstrap service information |
+| `GET /api/v1/system/info` | Technical service information |
+| `/api/v1/organizations` | Create and page organizations |
+| `/api/v1/organizations/{organizationId}` | Get or update an organization |
+| `/api/v1/organizations/{organizationId}/branches` | Create and page scoped branches |
+| `/api/v1/organizations/{organizationId}/branches/{branchId}` | Get or update a scoped branch |
 | `/swagger-ui.html` | Swagger UI |
 | `/v3/api-docs` | OpenAPI JSON |
 | `/actuator/health` | Health status |
 
-## Package structure
+Creation returns `201` with `Location`; reads and updates return `200`. Validation returns `400`,
+missing resources `404`, and known uniqueness/integrity conflicts `409`. No DELETE endpoint exists.
+See the full [organizations and branches contract](docs/api/organizations-and-branches.md).
 
-```text
-com.flakomencia.agendaflow
-├── common
-│   ├── config
-│   ├── exception
-│   ├── persistence
-│   ├── security
-│   └── system
-├── organization
-├── branch
-├── identity
-├── customer
-├── servicecatalog
-├── specialist
-├── scheduling
-├── appointment
-├── notification
-└── reporting
-```
+## Pagination and isolation
 
-Only the technical bootstrap configuration and system endpoint have classes in Phase 0. The remaining packages establish the intended module boundaries without placeholder business classes.
+Organization and branch lists support `page`, `size` and `sort`, with a maximum size of 100 and an
+explicit page response. Every application query for a branch includes its `organizationId`; using a
+branch ID through another organization returns 404.
 
-## Flyway strategy
+## Security and CORS
 
-Flyway owns all database schema changes. Existing migration files are preserved exactly as authored. The integration test executes them only against a disposable Testcontainers database; production and local schema evolution must use versioned migrations under `src/main/resources/db/migration`.
+Spring Security is present, but the new endpoints are temporarily permitted without authentication
+for local development. This is not production-ready security. There are no in-memory users, Basic
+Auth, login forms, JWTs or generated passwords.
 
-All primary and foreign keys in the designed PostgreSQL schema use `BIGINT`; future Java persistence mappings must represent them with `Long`, never UUIDs unless the database design is explicitly changed in a future decision.
+CORS defaults to `http://localhost:4200`, is configurable through `APP_CORS_ALLOWED_ORIGINS`, allows
+only `GET`, `POST`, `PUT` and `OPTIONS`, exposes `Location`, and does not enable credentials.
+
+## Package architecture
+
+`organization` and `branch` each contain `api`, `application`, `domain` and `infrastructure` layers.
+DTOs are Java records, mapping is manual, and entities never cross the controller boundary. Details
+are documented in [backend modules](docs/architecture/backend-modules.md).
+
+## Flyway and identifiers
+
+Flyway is the sole source of database schema changes. Phase 2 adds no migration and leaves
+`V1__initial_schema.sql` unchanged. PostgreSQL defaults and triggers continue to own default values
+and `updated_at` behavior.
+
+All primary and foreign keys are `BIGINT` and map to Java `Long`; no UUID identifier was introduced.
 
 ## Related projects
 
 - [agendaflow-web](../agendaflow-web)
 - [agendaflow-notification-service](../agendaflow-notification-service)
 
-## Not implemented yet
+## Not implemented
 
-- JPA entities and repositories
-- Business DTOs, mappers, use cases, and services
-- JWT, login, refresh tokens, users, and roles
-- Multi-tenant rules and seed data
-- Scheduling, appointments, and notifications
-- Spring Batch jobs
+- AppUser, memberships, roles, permissions or tenant authorization.
+- JWT, login, refresh tokens or service authentication.
+- Services, specialists, customers, schedules or appointments.
+- Soft-delete endpoints or automatic audit capture.
+- Spring Batch jobs, Quarkus integration, deployment or CI/CD.

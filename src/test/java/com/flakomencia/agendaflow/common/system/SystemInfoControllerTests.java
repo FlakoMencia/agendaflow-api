@@ -9,12 +9,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import com.flakomencia.agendaflow.branch.application.BranchService;
+import com.flakomencia.agendaflow.organization.application.OrganizationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SystemInfoControllerTests {
+
+    @MockitoBean
+    OrganizationService organizationService;
+
+    @MockitoBean
+    BranchService branchService;
 
     @Autowired
     private MockMvc mockMvc;
