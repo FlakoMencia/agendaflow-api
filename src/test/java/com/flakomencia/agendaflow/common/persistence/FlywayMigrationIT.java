@@ -109,9 +109,25 @@ class FlywayMigrationIT {
 
         assertThat(failedMigrations).isZero();
         assertThat(baselineEntries).isZero();
-        assertThat(successfulVersionedMigrations).isEqualTo(1L);
+        assertThat(successfulVersionedMigrations).isEqualTo(2L);
         assertThat(environment.getProperty("spring.flyway.baseline-on-migrate"))
                 .isEqualTo("false");
+    }
+
+    @Test
+    void assignsEveryActivePermissionToGlobalPlatformAdministrator() {
+        Long activePermissions = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendaflow.permissions WHERE is_active = TRUE", Long.class);
+        Long platformPermissions = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM agendaflow.role_permissions role_permission
+                JOIN agendaflow.roles role ON role.id = role_permission.role_id
+                WHERE role.organization_id IS NULL
+                  AND role.name = 'PLATFORM_ADMIN'
+                """, Long.class);
+
+        assertThat(activePermissions).isPositive();
+        assertThat(platformPermissions).isEqualTo(activePermissions);
     }
 
     @Test

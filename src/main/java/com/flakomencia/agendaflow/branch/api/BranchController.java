@@ -6,6 +6,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ import com.flakomencia.agendaflow.common.api.StandardApiErrorResponses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -35,6 +37,7 @@ import jakarta.validation.constraints.Positive;
         produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Branches", description = "Organization-scoped branch management")
 @StandardApiErrorResponses
+@SecurityRequirement(name = "bearerAuth")
 public class BranchController {
 
     private final BranchService service;
@@ -44,6 +47,7 @@ public class BranchController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('BRANCHES_MANAGE') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Create a branch inside an organization")
     @ApiResponse(responseCode = "201", description = "Branch created")
     public ResponseEntity<BranchResponse> create(
@@ -59,6 +63,7 @@ public class BranchController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('BRANCHES_VIEW') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "List branches in an organization")
     @ApiResponse(responseCode = "200", description = "Paginated branches")
     public PageResponse<BranchResponse> list(
@@ -69,6 +74,7 @@ public class BranchController {
     }
 
     @GetMapping("/{branchId}")
+    @PreAuthorize("hasAuthority('BRANCHES_VIEW') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Get an organization-scoped branch")
     @ApiResponse(responseCode = "200", description = "Branch found")
     public BranchResponse get(
@@ -80,6 +86,7 @@ public class BranchController {
     }
 
     @PutMapping(path = "/{branchId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('BRANCHES_MANAGE') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Update an organization-scoped branch")
     @ApiResponse(responseCode = "200", description = "Branch updated")
     public BranchResponse update(

@@ -14,8 +14,10 @@ import com.flakomencia.agendaflow.branch.infrastructure.BranchRepository;
 import com.flakomencia.agendaflow.common.api.PageResponse;
 import com.flakomencia.agendaflow.common.exception.ConflictException;
 import com.flakomencia.agendaflow.common.exception.InvalidRequestException;
+import com.flakomencia.agendaflow.common.security.TenantAccessGuard;
 import com.flakomencia.agendaflow.organization.application.OrganizationNotFoundException;
 import com.flakomencia.agendaflow.organization.domain.Organization;
+import com.flakomencia.agendaflow.organization.domain.OrganizationStatus;
 import com.flakomencia.agendaflow.organization.infrastructure.OrganizationRepository;
 
 import jakarta.persistence.EntityManager;
@@ -30,20 +32,24 @@ public class BranchService {
     private final OrganizationRepository organizationRepository;
     private final BranchMapper mapper;
     private final EntityManager entityManager;
+    private final TenantAccessGuard tenantAccess;
 
     public BranchService(
             BranchRepository branchRepository,
             OrganizationRepository organizationRepository,
             BranchMapper mapper,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            TenantAccessGuard tenantAccess) {
         this.branchRepository = branchRepository;
         this.organizationRepository = organizationRepository;
         this.mapper = mapper;
         this.entityManager = entityManager;
+        this.tenantAccess = tenantAccess;
     }
 
     @Transactional
     public BranchResponse create(Long organizationId, BranchCreateRequest request) {
+        tenantAccess.requireTenant(organizationId);
         Organization organization = requireOrganization(organizationId);
         validateDuplicates(organizationId, request.name(), request.code(), null);
         Branch branch = branchRepository.save(mapper.toEntity(organization, request));
@@ -54,6 +60,7 @@ public class BranchService {
 
     @Transactional(readOnly = true)
     public PageResponse<BranchResponse> list(Long organizationId, Pageable pageable) {
+        tenantAccess.requireTenant(organizationId);
         requireOrganization(organizationId);
         validateSort(pageable);
         return PageResponse.from(
@@ -63,12 +70,14 @@ public class BranchService {
 
     @Transactional(readOnly = true)
     public BranchResponse get(Long organizationId, Long branchId) {
+        tenantAccess.requireTenant(organizationId);
         requireOrganization(organizationId);
         return mapper.toResponse(requireBranch(organizationId, branchId));
     }
 
     @Transactional
     public BranchResponse update(Long organizationId, Long branchId, BranchUpdateRequest request) {
+        tenantAccess.requireTenant(organizationId);
         requireOrganization(organizationId);
         Branch branch = requireBranch(organizationId, branchId);
         validateDuplicates(organizationId, request.name(), request.code(), branchId);
@@ -79,6 +88,11 @@ public class BranchService {
     }
 
     private Organization requireOrganization(Long organizationId) {
+        if (!tenantAccess.current().isPlatformAdministrator()) {
+            return organizationRepository
+                    .findByIdAndStatusAndDeletedAtIsNull(organizationId, OrganizationStatus.ACTIVE)
+                    .orElseThrow(() -> new OrganizationNotFoundException(organizationId));
+        }
         return organizationRepository.findByIdAndDeletedAtIsNull(organizationId)
                 .orElseThrow(() -> new OrganizationNotFoundException(organizationId));
     }

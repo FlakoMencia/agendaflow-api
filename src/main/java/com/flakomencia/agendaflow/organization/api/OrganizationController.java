@@ -6,6 +6,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ import com.flakomencia.agendaflow.organization.application.OrganizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -33,6 +35,7 @@ import jakarta.validation.constraints.Positive;
 @RequestMapping(path = "/api/v1/organizations", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Organizations", description = "Organization management")
 @StandardApiErrorResponses
+@SecurityRequirement(name = "bearerAuth")
 public class OrganizationController {
 
     private final OrganizationService service;
@@ -42,6 +45,7 @@ public class OrganizationController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Create an organization")
     @ApiResponse(responseCode = "201", description = "Organization created")
     public ResponseEntity<OrganizationResponse> create(@Valid @RequestBody OrganizationCreateRequest request) {
@@ -54,6 +58,7 @@ public class OrganizationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ORGANIZATION_VIEW') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "List active organization records")
     @ApiResponse(responseCode = "200", description = "Paginated organizations")
     public PageResponse<OrganizationResponse> list(
@@ -62,6 +67,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/{organizationId}")
+    @PreAuthorize("hasAuthority('ORGANIZATION_VIEW') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Get an organization")
     @ApiResponse(responseCode = "200", description = "Organization found")
     public OrganizationResponse get(
@@ -71,6 +77,7 @@ public class OrganizationController {
     }
 
     @PutMapping(path = "/{organizationId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('ORGANIZATION_UPDATE') or hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Update an organization")
     @ApiResponse(responseCode = "200", description = "Organization updated")
     public OrganizationResponse update(

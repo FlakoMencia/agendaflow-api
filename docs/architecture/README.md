@@ -4,3 +4,4 @@ This folder holds architecture overviews, component boundaries, deployment views
 diagrams as the platform evolves.
 
 - [Backend modules](backend-modules.md)
+- [Multi-tenancy](multi-tenancy.md)

@@ -13,6 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.flakomencia.agendaflow.branch.application.BranchService;
+import com.flakomencia.agendaflow.identity.application.AuthenticationService;
 import com.flakomencia.agendaflow.organization.application.OrganizationService;
 
 @SpringBootTest
@@ -25,6 +26,9 @@ class SystemInfoControllerTests {
 
     @MockitoBean
     BranchService branchService;
+
+    @MockitoBean
+    AuthenticationService authenticationService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -41,6 +45,7 @@ class SystemInfoControllerTests {
     @Test
     void deniesUnapprovedEndpoint() throws Exception {
         mockMvc.perform(get("/api/v1/not-permitted"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
 }

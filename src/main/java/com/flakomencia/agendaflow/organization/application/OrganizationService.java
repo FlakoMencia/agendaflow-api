@@ -9,10 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.flakomencia.agendaflow.common.api.PageResponse;
 import com.flakomencia.agendaflow.common.exception.ConflictException;
 import com.flakomencia.agendaflow.common.exception.InvalidRequestException;
+import com.flakomencia.agendaflow.common.security.AuthenticatedOrganizationContext;
+import com.flakomencia.agendaflow.common.security.TenantAccessGuard;
 import com.flakomencia.agendaflow.organization.api.OrganizationCreateRequest;
 import com.flakomencia.agendaflow.organization.api.OrganizationResponse;
 import com.flakomencia.agendaflow.organization.api.OrganizationUpdateRequest;
 import com.flakomencia.agendaflow.organization.domain.Organization;
+import com.flakomencia.agendaflow.organization.domain.OrganizationStatus;
 import com.flakomencia.agendaflow.organization.infrastructure.OrganizationRepository;
 
 import jakarta.persistence.EntityManager;
@@ -26,14 +29,17 @@ public class OrganizationService {
     private final OrganizationRepository repository;
     private final OrganizationMapper mapper;
     private final EntityManager entityManager;
+    private final TenantAccessGuard tenantAccess;
 
     public OrganizationService(
             OrganizationRepository repository,
             OrganizationMapper mapper,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            TenantAccessGuard tenantAccess) {
         this.repository = repository;
         this.mapper = mapper;
         this.entityManager = entityManager;
+        this.tenantAccess = tenantAccess;
     }
 
     @Transactional
@@ -48,17 +54,26 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public PageResponse<OrganizationResponse> list(Pageable pageable) {
         validateSort(pageable);
-        return PageResponse.from(repository.findAllByDeletedAtIsNull(pageable), mapper::toResponse);
+        AuthenticatedOrganizationContext context = tenantAccess.current();
+        if (context.isPlatformAdministrator()) {
+            return PageResponse.from(repository.findAllByDeletedAtIsNull(pageable), mapper::toResponse);
+        }
+        return PageResponse.from(
+                repository.findAllByIdAndStatusAndDeletedAtIsNull(
+                        context.organizationId(), OrganizationStatus.ACTIVE, pageable),
+                mapper::toResponse);
     }
 
     @Transactional(readOnly = true)
     public OrganizationResponse get(Long organizationId) {
-        return mapper.toResponse(requireOrganization(organizationId));
+        tenantAccess.requireTenant(organizationId);
+        return mapper.toResponse(requireAccessibleOrganization(organizationId));
     }
 
     @Transactional
     public OrganizationResponse update(Long organizationId, OrganizationUpdateRequest request) {
-        Organization organization = requireOrganization(organizationId);
+        tenantAccess.requireTenant(organizationId);
+        Organization organization = requireAccessibleOrganization(organizationId);
         validateTaxIdentifierAvailable(request.taxIdentifier(), organizationId);
         mapper.update(organization, request);
         entityManager.flush();
@@ -68,6 +83,14 @@ public class OrganizationService {
 
     private Organization requireOrganization(Long organizationId) {
         return repository.findByIdAndDeletedAtIsNull(organizationId)
+                .orElseThrow(() -> new OrganizationNotFoundException(organizationId));
+    }
+
+    private Organization requireAccessibleOrganization(Long organizationId) {
+        if (tenantAccess.current().isPlatformAdministrator()) {
+            return requireOrganization(organizationId);
+        }
+        return repository.findByIdAndStatusAndDeletedAtIsNull(organizationId, OrganizationStatus.ACTIVE)
                 .orElseThrow(() -> new OrganizationNotFoundException(organizationId));
     }
 

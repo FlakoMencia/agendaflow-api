@@ -6,6 +6,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.flakomencia.agendaflow.branch.application.BranchService;
+import com.flakomencia.agendaflow.identity.application.AuthenticationService;
 import com.flakomencia.agendaflow.organization.application.OrganizationService;
 
 @SpringBootTest
@@ -17,6 +18,9 @@ class AgendaFlowApiApplicationTests {
 
     @MockitoBean
     BranchService branchService;
+
+    @MockitoBean
+    AuthenticationService authenticationService;
 
     @Test
     void contextLoads() {

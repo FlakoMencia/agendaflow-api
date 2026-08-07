@@ -4,3 +4,4 @@ This folder holds API conventions, endpoint design guidance, versioning rules, a
 contracts.
 
 - [Organizations and branches](organizations-and-branches.md)
+- [Authentication](authentication.md)

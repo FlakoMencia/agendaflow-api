@@ -19,6 +19,19 @@ spring:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  security:
+    lockout:
+      maximum-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
+    user-token:
+      secret: ${JWT_SECRET:local-only-change-me-user-token-secret-32-bytes-minimum}
+      issuer: ${JWT_ISSUER:agendaflow-api}
+      audience: ${JWT_AUDIENCE:agendaflow-web}
+      time-to-live: ${JWT_ACCESS_TOKEN_TTL:30m}
+    service-token:
+      secret: ${SERVICE_JWT_SECRET:local-only-change-me-service-token-secret-32-bytes-minimum}
+      issuer: ${SERVICE_JWT_ISSUER:agendaflow-api}
+      audience: ${SERVICE_JWT_AUDIENCE:agendaflow-notification-service}
+      time-to-live: ${SERVICE_JWT_TTL:5m}
 
 server:
   port: 8080

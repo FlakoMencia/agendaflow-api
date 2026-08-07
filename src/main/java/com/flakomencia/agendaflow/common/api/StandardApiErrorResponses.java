@@ -26,6 +26,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
                         mediaType = MediaType.APPLICATION_JSON_VALUE,
                         schema = @Schema(implementation = ApiErrorResponse.class))),
         @ApiResponse(
+                responseCode = "401",
+                description = "Authentication is missing or invalid",
+                content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                        schema = @Schema(implementation = ApiErrorResponse.class))),
+        @ApiResponse(
+                responseCode = "403",
+                description = "Authenticated principal lacks the required permission",
+                content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                        schema = @Schema(implementation = ApiErrorResponse.class))),
+        @ApiResponse(
                 responseCode = "404",
                 description = "Resource not found",
                 content = @Content(
