@@ -15,6 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.flakomencia.agendaflow.branch.application.BranchService;
 import com.flakomencia.agendaflow.identity.application.AuthenticationService;
 import com.flakomencia.agendaflow.organization.application.OrganizationService;
+import com.flakomencia.agendaflow.scheduling.application.SchedulingApplicationService;
+import com.flakomencia.agendaflow.servicecatalog.application.ServiceCatalogApplicationService;
+import com.flakomencia.agendaflow.specialist.application.SpecialistApplicationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -29,6 +32,15 @@ class SystemInfoControllerTests {
 
     @MockitoBean
     AuthenticationService authenticationService;
+
+    @MockitoBean
+    ServiceCatalogApplicationService serviceCatalogApplicationService;
+
+    @MockitoBean
+    SpecialistApplicationService specialistApplicationService;
+
+    @MockitoBean
+    SchedulingApplicationService schedulingApplicationService;
 
     @Autowired
     private MockMvc mockMvc;

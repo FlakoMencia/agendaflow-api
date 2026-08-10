@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.flakomencia.agendaflow.identity.domain.OrganizationMembership;
+import com.flakomencia.agendaflow.identity.domain.MembershipStatus;
 
 public interface OrganizationMembershipRepository extends JpaRepository<OrganizationMembership, Long> {
 
@@ -28,4 +29,7 @@ public interface OrganizationMembershipRepository extends JpaRepository<Organiza
             where membership.id = :membershipId
             """)
     Optional<OrganizationMembership> findSessionMembershipById(@Param("membershipId") Long membershipId);
+
+    boolean existsByOrganization_IdAndUser_IdAndStatus(
+            Long organizationId, Long userId, MembershipStatus status);
 }

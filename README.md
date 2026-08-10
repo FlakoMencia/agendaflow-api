@@ -5,10 +5,10 @@ appointment management.
 
 ## Status
 
-**Phase 3 — identity, multi-tenancy and JWT authentication.** The API authenticates active users
-inside one organization, protects the Phase 2 organization/branch vertical slice, and can issue a
-short-lived internal notification-service token. Refresh tokens and business modules remain out of
-scope.
+**Phase 4 — services, specialists and availability.** The API now manages organizations, branches,
+the service catalog, specialist assignments, recurring availability rules and schedule blocks.
+These rules are prerequisites for appointments; they do not generate bookable slots or reserve
+appointments.
 
 ## Stack
 
@@ -23,32 +23,16 @@ scope.
 | Schema management | Flyway |
 | Tests | JUnit, Mockito, MockMvc and Testcontainers |
 
-All database primary and foreign keys are PostgreSQL `BIGINT` mapped to Java `Long`.
+All PostgreSQL primary and foreign keys are `BIGINT` and map to Java `Long`. Monetary values map to
+`BigDecimal`; wall-clock hours use `LocalTime`, validity dates use `LocalDate`, and timestamps use
+`OffsetDateTime`.
 
 ## Local configuration
 
-The default `local` profile uses PostgreSQL and the variables documented in `.env.example`:
-
-```text
-DB_URL=jdbc:postgresql://localhost:5432/agendaflow_db
-DB_USERNAME=agendaflow_user
-DB_PASSWORD=change-me
-JWT_SECRET=change-me
-JWT_ISSUER=agendaflow-api
-JWT_AUDIENCE=agendaflow-web
-JWT_ACCESS_TOKEN_TTL=30m
-SERVICE_JWT_SECRET=change-me
-SERVICE_JWT_ISSUER=agendaflow-api
-SERVICE_JWT_AUDIENCE=agendaflow-notification-service
-SERVICE_JWT_TTL=5m
-AUTH_MAX_FAILED_ATTEMPTS=5
-```
-
-Use strong, different user/service secrets of at least 32 UTF-8 bytes. Do not commit `.env` or real
-credentials. Non-local/test profiles reject repository placeholders. Hibernate uses
-`ddl-auto: validate` and never creates or updates tables.
-
-## Build, tests and execution
+The default `local` profile uses PostgreSQL and the variables documented in `.env.example`.
+User-token and service-token secrets must be different, strong values of at least 32 UTF-8 bytes.
+Never commit `.env` or real credentials. Hibernate uses `ddl-auto: validate`; Flyway alone owns the
+schema.
 
 ```cmd
 mvnw.cmd --version
@@ -57,58 +41,65 @@ mvnw.cmd clean verify
 mvnw.cmd spring-boot:run
 ```
 
-`clean test` runs database-free bootstrap and unit tests. `clean verify` additionally starts
-disposable `postgres:18.4` containers, applies Flyway V1/V2, and runs the HTTP security and
-persistence integrations. Docker is required for `verify`; the local database is not used.
+`clean test` is database-free. `clean verify` starts disposable `postgres:18.4` containers, applies
+Flyway V1/V2 and runs HTTP/persistence integrations without using the local database. Docker is
+required for `verify`. The API listens on `http://localhost:8080`.
 
-The API listens on `http://localhost:8080` by default.
+## Technical and business routes
 
-## HTTP routes
+| Area | Base route | Authorities |
+| --- | --- | --- |
+| Login/session | `/api/v1/auth` | Public login; Bearer session |
+| Organizations | `/api/v1/organizations` | Organization authorities |
+| Branches | `/api/v1/organizations/{organizationId}/branches` | `BRANCHES_VIEW/MANAGE` |
+| Categories/services | `/api/v1/organizations/{organizationId}/service-categories`, `/services` | `SERVICES_VIEW/MANAGE` |
+| Branch services | `/api/v1/organizations/{organizationId}/branches/{branchId}/services` | `SERVICES_VIEW/MANAGE` |
+| Specialists | `/api/v1/organizations/{organizationId}/specialists` | `SPECIALISTS_VIEW/MANAGE` |
+| Availability/blocks | `/api/v1/organizations/{organizationId}/specialists/{specialistId}` | `SCHEDULE_VIEW/MANAGE` |
+| OpenAPI | `/v3/api-docs`, `/swagger-ui.html` | Public technical documentation |
+| Health | `/actuator/health` | Public technical health |
 
-| Route | Access and purpose |
-| --- | --- |
-| `POST /api/v1/auth/login` | Public; authenticate email/password for one `organizationId` |
-| `GET /api/v1/auth/me` | Bearer; current user, active organization, roles and permissions |
-| `GET /api/v1/system/info` | Public technical information |
-| `/api/v1/organizations/**` | Bearer plus organization authorities |
-| `/api/v1/organizations/{organizationId}/branches/**` | Bearer plus branch authorities and tenant match |
-| `/swagger-ui.html` | Public development Swagger UI |
-| `/v3/api-docs` | Public development OpenAPI JSON |
-| `/actuator/health` | Public health status |
+Paged endpoints return the stable `PageResponse` contract rather than serializing Spring
+`PageImpl`. Services, specialists and schedule blocks are paged; categories and assignment lists are
+small organization-scoped lists.
 
-See [authentication](docs/api/authentication.md) and
-[organizations and branches](docs/api/organizations-and-branches.md).
+API details:
+
+- [Authentication](docs/api/authentication.md)
+- [Organizations and branches](docs/api/organizations-and-branches.md)
+- [Services](docs/api/services.md)
+- [Specialists](docs/api/specialists.md)
+- [Availability](docs/api/availability.md)
 
 ## Security and tenancy
 
-Passwords are BCrypt hashes. Login uses a generic invalid-credential response and locks an account
-after a configurable number of bad password attempts. A successful login resets that counter.
+The Phase 3 JWT contract is unchanged. Every operational route compares the path `organizationId`
+with `AuthenticatedOrganizationContext`; `PLATFORM_ADMIN` may address another organization. The
+application layer repeats this boundary and repositories include the organization in sensitive
+lookups. Cross-tenant resource identifiers resolve as `404`.
 
-The user token lasts 30 minutes by default and has no refresh token. It fixes one active organization
-chosen during login; this required field is a temporary Phase 3 contract until an explicit secure
-organization-switch experience is designed. Permissions become direct authorities and roles become
-`ROLE_*` authorities. Cross-tenant organization and branch identifiers return `404`.
+Passwords remain BCrypt hashes. User access tokens last 30 minutes by default and contain one active
+organization. The internal service-token issuer makes no HTTP call to Quarkus.
 
-The separate service-token issuer is internal only and currently makes no call to Quarkus. Details:
+## Service and scheduling model
 
-- [JWT design](docs/security/jwt-design.md)
-- [Authentication flow](docs/security/authentication-flow.md)
-- [Roles and permissions](docs/security/roles-and-permissions.md)
-- [Multi-tenancy](docs/architecture/multi-tenancy.md)
+Categories and services belong directly to an organization. Explicit bridge entities hold
+branch-service, specialist-branch and specialist-service configuration. Specialists may optionally
+reference an active organization member.
 
-CORS allows configured origins, `Authorization` and `Content-Type`, and `GET`, `POST`, `PUT`, and
-`OPTIONS`, without cookies or credentialed wildcard origins.
+Availability is a recurring rule for one specialist, branch and weekday (`0` through `6`), with a
+time interval and optional validity dates. Active rules with intersecting validity dates cannot have
+overlapping times. Schedule blocks represent the V1 types `BREAK`, `VACATION`, `HOLIDAY`,
+`SICK_LEAVE`, `PERSONAL`, `MEETING`, `MAINTENANCE` and `OTHER`.
 
-## Flyway and local identity
+See [scheduling domain](docs/architecture/scheduling-domain.md) and
+[backend modules](docs/architecture/backend-modules.md).
 
-Flyway is the sole source of schema and security reference data. `V1__initial_schema.sql` remains
-unchanged; V2 only completes the global `PLATFORM_ADMIN` permission associations. Neither migration
-creates users, memberships or organizations.
+## Flyway
 
-For manual local identity setup, follow
-[local authentication testing](docs/security/local-authentication-testing.md). The template lives at
-`database/development/seed-local-identity.template.sql`, outside Flyway, and contains placeholders
-only.
+V1 defines the complete schema and initial role/permission reference data. V2 completes global
+`PLATFORM_ADMIN` permission associations. Phase 4 does not add or change a migration. No users,
+organizations or operational seed data are created.
 
 ## Related projects
 
@@ -117,8 +108,8 @@ only.
 
 ## Not implemented
 
-- Refresh tokens, token revocation, server logout or organization switching.
-- Registration, invitations, email verification, password recovery, MFA or user/role CRUD.
-- Rate limiting or `membership_branches` authorization.
-- Services, specialists, customers, schedules or appointments.
-- Calls to Quarkus, asynchronous messaging, deployment or CI/CD.
+- Customers, appointments, waitlists, status history or final slot generation.
+- Booking concurrency, payments or appointment reservations.
+- Refresh tokens, organization switching, user CRUD or membership-branch restrictions.
+- Notification delivery, Quarkus HTTP integration, asynchronous messaging or batch jobs.
+- Docker packaging, cloud deployment or CI/CD.
