@@ -11,3 +11,8 @@ spring:
       - org.springframework.boot.batch.autoconfigure.BatchAutoConfiguration
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
       - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+
+app:
+  notification:
+    outbox:
+      enabled: false

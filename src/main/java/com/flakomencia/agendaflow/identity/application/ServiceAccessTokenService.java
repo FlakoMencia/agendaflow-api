@@ -17,6 +17,7 @@ import com.flakomencia.agendaflow.common.security.AgendaFlowSecurityProperties;
 @Service
 public class ServiceAccessTokenService {
     public static final String NOTIFICATION_VALIDATE_GROUP = "notification:validate";
+    public static final String NOTIFICATION_SUBMIT_GROUP = "notification:submit";
 
     private final JwtEncoder encoder;
     private final AgendaFlowSecurityProperties.Token settings;
@@ -35,6 +36,14 @@ public class ServiceAccessTokenService {
     }
 
     public IssuedToken issueNotificationValidationToken() {
+        return issue(NOTIFICATION_VALIDATE_GROUP);
+    }
+
+    public IssuedToken issueNotificationSubmissionToken() {
+        return issue(NOTIFICATION_SUBMIT_GROUP);
+    }
+
+    private IssuedToken issue(String group) {
         Instant issuedAt = clock.instant();
         Instant expiresAt = issuedAt.plus(settings.timeToLive());
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -45,7 +54,7 @@ public class ServiceAccessTokenService {
                 .notBefore(issuedAt)
                 .expiresAt(expiresAt)
                 .id(identifiers.next())
-                .claim("groups", List.of(NOTIFICATION_VALIDATE_GROUP))
+                .claim("groups", List.of(group))
                 .claim("token_use", "service")
                 .build();
         String value = encoder.encode(JwtEncoderParameters.from(

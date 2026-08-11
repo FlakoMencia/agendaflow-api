@@ -13,9 +13,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.flakomencia.agendaflow.branch.application.BranchService;
+import com.flakomencia.agendaflow.appointment.application.AppointmentApplicationService;
+import com.flakomencia.agendaflow.customer.application.CustomerApplicationService;
 import com.flakomencia.agendaflow.identity.application.AuthenticationService;
 import com.flakomencia.agendaflow.organization.application.OrganizationService;
+import com.flakomencia.agendaflow.notification.application.AppointmentNotificationOutboxService;
+import com.flakomencia.agendaflow.notification.application.NotificationOutboxClaimService;
+import com.flakomencia.agendaflow.notification.application.NotificationOutboxStateService;
 import com.flakomencia.agendaflow.scheduling.application.SchedulingApplicationService;
+import com.flakomencia.agendaflow.scheduling.application.AvailableSlotService;
 import com.flakomencia.agendaflow.servicecatalog.application.ServiceCatalogApplicationService;
 import com.flakomencia.agendaflow.specialist.application.SpecialistApplicationService;
 
@@ -41,6 +47,19 @@ class SystemInfoControllerTests {
 
     @MockitoBean
     SchedulingApplicationService schedulingApplicationService;
+
+    @MockitoBean
+    CustomerApplicationService customerApplicationService;
+
+    @MockitoBean
+    AppointmentApplicationService appointmentApplicationService;
+
+    @MockitoBean
+    AvailableSlotService availableSlotService;
+
+    @MockitoBean AppointmentNotificationOutboxService appointmentNotificationOutboxService;
+    @MockitoBean NotificationOutboxClaimService notificationOutboxClaimService;
+    @MockitoBean NotificationOutboxStateService notificationOutboxStateService;
 
     @Autowired
     private MockMvc mockMvc;

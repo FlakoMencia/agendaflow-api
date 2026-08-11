@@ -14,3 +14,8 @@ spring:
     locations: classpath:db/migration
     schemas: agendaflow,audit
     baseline-on-migrate: false
+
+app:
+  notification:
+    outbox:
+      enabled: ${NOTIFICATION_OUTBOX_ENABLED:true}

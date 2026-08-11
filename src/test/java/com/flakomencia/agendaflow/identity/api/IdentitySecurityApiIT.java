@@ -238,6 +238,12 @@ class IdentitySecurityApiIT {
         assertThat(jwt.getAudience()).containsExactly("agendaflow-notification-service");
         assertThat(jwt.getClaimAsString("token_use")).isEqualTo("service");
         assertThat(jwt.getClaimAsStringList("groups")).containsExactly("notification:validate");
+
+        var submitJwt = serviceJwtDecoder.decode(serviceAccessTokenService.issueNotificationSubmissionToken().value());
+        assertThat(submitJwt.getSubject()).isEqualTo("agendaflow-api");
+        assertThat(submitJwt.getAudience()).containsExactly("agendaflow-notification-service");
+        assertThat(submitJwt.getClaimAsString("token_use")).isEqualTo("service");
+        assertThat(submitJwt.getClaimAsStringList("groups")).containsExactly("notification:submit");
     }
 
     private void assertInvalidLogin(String email, String password, Long organizationId) throws Exception {

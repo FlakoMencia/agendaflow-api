@@ -69,6 +69,11 @@ class JwtTokenServicesTest {
         assertThat(jwt.getClaimAsString("token_use")).isEqualTo("service");
         assertThat(jwt.getClaimAsStringList("groups")).containsExactly("notification:validate");
         assertThat(jwt.getAudience()).containsExactly("agendaflow-notification-service");
+
+        var submissionJwt = decoder(secret).decode(service.issueNotificationSubmissionToken().value());
+        assertThat(submissionJwt.getClaimAsStringList("groups")).containsExactly("notification:submit");
+        assertThat(submissionJwt.getSubject()).isEqualTo("agendaflow-api");
+        assertThat(submissionJwt.getClaimAsString("token_use")).isEqualTo("service");
     }
 
     private AgendaFlowSecurityProperties properties(AgendaFlowSecurityProperties.Token userSettings) {

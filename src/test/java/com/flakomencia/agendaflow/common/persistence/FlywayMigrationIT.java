@@ -53,6 +53,7 @@ class FlywayMigrationIT {
             "agendaflow.waitlist_requests",
             "agendaflow.notification_templates",
             "agendaflow.notifications",
+            "agendaflow.notification_outbox",
             "audit.audit_events");
 
     @Container
@@ -109,7 +110,7 @@ class FlywayMigrationIT {
 
         assertThat(failedMigrations).isZero();
         assertThat(baselineEntries).isZero();
-        assertThat(successfulVersionedMigrations).isEqualTo(2L);
+        assertThat(successfulVersionedMigrations).isEqualTo(3L);
         assertThat(environment.getProperty("spring.flyway.baseline-on-migrate"))
                 .isEqualTo("false");
     }
